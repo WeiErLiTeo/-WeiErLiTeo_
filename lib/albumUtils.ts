@@ -15,8 +15,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Creates a single "photo album" page image from a collection of decade images.
- * @param imageData A record mapping decade strings to their image data URLs.
+ * Creates a single "photo album" page image from a collection of scene images.
+ * @param imageData A record mapping scene strings to their image data URLs.
  * @returns A promise that resolves to a data URL of the generated album page (JPEG format).
  */
 export async function createAlbumPage(imageData: Record<string, string>): Promise<string> {
@@ -40,27 +40,27 @@ export async function createAlbumPage(imageData: Record<string, string>): Promis
     ctx.fillStyle = '#333';
     ctx.textAlign = 'center';
 
-    ctx.font = `bold 100px 'Caveat', cursive`;
-    ctx.fillText('Generated with Past Forward', canvasWidth / 2, 150);
+    ctx.font = `150px 'Great Vibes', cursive`;
+    ctx.fillText('My Violet Evergarden Album', canvasWidth / 2, 180);
 
-    ctx.font = `50px 'Roboto', sans-serif`;
+    ctx.font = `50px 'Lato', sans-serif`;
     ctx.fillStyle = '#555';
-    ctx.fillText('on Google AI Studio', canvasWidth / 2, 220);
+    ctx.fillText('Created with Google AI Studio', canvasWidth / 2, 250);
 
     // 3. Load all the polaroid images concurrently
-    const decades = Object.keys(imageData);
+    const scenes = Object.keys(imageData);
     const loadedImages = await Promise.all(
         Object.values(imageData).map(url => loadImage(url))
     );
 
-    const imagesWithDecades = decades.map((decade, index) => ({
-        decade,
+    const imagesWithScenes = scenes.map((scene, index) => ({
+        scene,
         img: loadedImages[index],
     }));
 
     // 4. Define grid layout and draw each polaroid
     const grid = { cols: 2, rows: 3, padding: 100 };
-    const contentTopMargin = 300; // Space for the header
+    const contentTopMargin = 320; // Space for the header
     const contentHeight = canvasHeight - contentTopMargin;
     const cellWidth = (canvasWidth - grid.padding * (grid.cols + 1)) / grid.cols;
     const cellHeight = (contentHeight - grid.padding * (grid.rows + 1)) / grid.rows;
@@ -82,10 +82,10 @@ export async function createAlbumPage(imageData: Record<string, string>): Promis
     const imageContainerHeight = imageContainerWidth; // Classic square-ish photo area
 
     // Reverse the drawing order: draw bottom rows first so top rows are rendered on top
-    const reversedImages = [...imagesWithDecades].reverse();
-    reversedImages.forEach(({ decade, img }, reversedIndex) => {
+    const reversedImages = [...imagesWithScenes].reverse();
+    reversedImages.forEach(({ scene, img }, reversedIndex) => {
         // Calculate the original index to determine grid position
-        const index = imagesWithDecades.length - 1 - reversedIndex;
+        const index = imagesWithScenes.length - 1 - reversedIndex;
 
         const row = Math.floor(index / grid.cols);
         const col = index % grid.cols;
@@ -137,7 +137,7 @@ export async function createAlbumPage(imageData: Record<string, string>): Promis
         
         // Draw the handwritten caption
         ctx.fillStyle = '#222';
-        ctx.font = `60px 'Permanent Marker', cursive`;
+        ctx.font = `60px 'Caveat', cursive`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
@@ -145,7 +145,7 @@ export async function createAlbumPage(imageData: Record<string, string>): Promis
         const captionAreaBottom = polaroidHeight / 2;
         const captionY = captionAreaTop + (captionAreaBottom - captionAreaTop) / 2;
 
-        ctx.fillText(decade, 0, captionY);
+        ctx.fillText(scene, 0, captionY);
         
         ctx.restore(); // Restore context to pre-transformation state
     });

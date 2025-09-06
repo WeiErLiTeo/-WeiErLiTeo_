@@ -4,12 +4,21 @@
 */
 import React, { useState, ChangeEvent, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { generateDecadeImage } from './services/geminiService';
+import { generateStyledImage } from './services/geminiService';
 import PolaroidCard from './components/PolaroidCard';
+import RemixModal from './components/RemixModal';
 import { createAlbumPage } from './lib/albumUtils';
 import Footer from './components/Footer';
 
-const DECADES = ['1950s', '1960s', '1970s', '1980s', '1990s', '2000s'];
+const SCENES = [
+    'As an Auto Memory Doll', 
+    'In a Leiden Street Scene', 
+    'At a Grand Ball', 
+    'In a Countryside Landscape', 
+    'Writing a Letter', 
+    'Under a Starry Sky'
+];
+
 
 // Pre-defined positions for a scattered look on desktop
 const POSITIONS = [
@@ -38,8 +47,8 @@ interface GeneratedImage {
     error?: string;
 }
 
-const primaryButtonClasses = "font-permanent-marker text-xl text-center text-black bg-yellow-400 py-3 px-8 rounded-sm transform transition-transform duration-200 hover:scale-105 hover:-rotate-2 hover:bg-yellow-300 shadow-[2px_2px_0px_2px_rgba(0,0,0,0.2)]";
-const secondaryButtonClasses = "font-permanent-marker text-xl text-center text-white bg-white/10 backdrop-blur-sm border-2 border-white/80 py-3 px-8 rounded-sm transform transition-transform duration-200 hover:scale-105 hover:rotate-2 hover:bg-white hover:text-black";
+const primaryButtonClasses = "font-lato text-xl text-center text-amber-900 bg-amber-400 py-3 px-8 rounded-sm transform transition-transform duration-200 hover:scale-105 hover:-rotate-2 hover:bg-amber-300 shadow-[2px_2px_0px_2px_rgba(0,0,0,0.1)]";
+const secondaryButtonClasses = "font-lato text-xl text-center text-white bg-white/10 backdrop-blur-sm border-2 border-white/80 py-3 px-8 rounded-sm transform transition-transform duration-200 hover:scale-105 hover:rotate-2 hover:bg-white hover:text-amber-800";
 
 const useMediaQuery = (query: string) => {
     const [matches, setMatches] = useState(false);
@@ -63,6 +72,11 @@ function App() {
     const [appState, setAppState] = useState<'idle' | 'image-uploaded' | 'generating' | 'results-shown'>('idle');
     const dragAreaRef = useRef<HTMLDivElement>(null);
     const isMobile = useMediaQuery('(max-width: 768px)');
+    const [remixModalState, setRemixModalState] = useState<{
+        isOpen: boolean;
+        scene: string | null;
+        imageUrl: string | null;
+    }>({ isOpen: false, scene: null, imageUrl: null });
 
 
     const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
@@ -85,37 +99,37 @@ function App() {
         setAppState('generating');
         
         const initialImages: Record<string, GeneratedImage> = {};
-        DECADES.forEach(decade => {
-            initialImages[decade] = { status: 'pending' };
+        SCENES.forEach(scene => {
+            initialImages[scene] = { status: 'pending' };
         });
         setGeneratedImages(initialImages);
 
-        const concurrencyLimit = 2; // Process two decades at a time
-        const decadesQueue = [...DECADES];
+        const concurrencyLimit = 2; // Process two scenes at a time
+        const scenesQueue = [...SCENES];
 
-        const processDecade = async (decade: string) => {
+        const processScene = async (scene: string) => {
             try {
-                const prompt = `Reimagine the person in this photo in the style of the ${decade}. This includes clothing, hairstyle, photo quality, and the overall aesthetic of that decade. The output must be a photorealistic image showing the person clearly.`;
-                const resultUrl = await generateDecadeImage(uploadedImage, prompt);
+                const prompt = `Reimagine the person in this photo in the artistic style of the anime 'Violet Evergarden'. The scene is: "${scene}". Capture the painterly, emotional aesthetic of the anime with detailed clothing and background appropriate for the scene. The output must be a high-quality, artistic image.`;
+                const resultUrl = await generateStyledImage(uploadedImage, prompt, scene);
                 setGeneratedImages(prev => ({
                     ...prev,
-                    [decade]: { status: 'done', url: resultUrl },
+                    [scene]: { status: 'done', url: resultUrl },
                 }));
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
                 setGeneratedImages(prev => ({
                     ...prev,
-                    [decade]: { status: 'error', error: errorMessage },
+                    [scene]: { status: 'error', error: errorMessage },
                 }));
-                console.error(`Failed to generate image for ${decade}:`, err);
+                console.error(`Failed to generate image for ${scene}:`, err);
             }
         };
 
         const workers = Array(concurrencyLimit).fill(null).map(async () => {
-            while (decadesQueue.length > 0) {
-                const decade = decadesQueue.shift();
-                if (decade) {
-                    await processDecade(decade);
+            while (scenesQueue.length > 0) {
+                const scene = scenesQueue.shift();
+                if (scene) {
+                    await processScene(scene);
                 }
             }
         });
@@ -126,37 +140,37 @@ function App() {
         setAppState('results-shown');
     };
 
-    const handleRegenerateDecade = async (decade: string) => {
+    const handleRegenerateScene = async (scene: string) => {
         if (!uploadedImage) return;
 
         // Prevent re-triggering if a generation is already in progress
-        if (generatedImages[decade]?.status === 'pending') {
+        if (generatedImages[scene]?.status === 'pending') {
             return;
         }
         
-        console.log(`Regenerating image for ${decade}...`);
+        console.log(`Regenerating image for ${scene}...`);
 
-        // Set the specific decade to 'pending' to show the loading spinner
+        // Set the specific scene to 'pending' to show the loading spinner
         setGeneratedImages(prev => ({
             ...prev,
-            [decade]: { status: 'pending' },
+            [scene]: { status: 'pending' },
         }));
 
-        // Call the generation service for the specific decade
+        // Call the generation service for the specific scene
         try {
-            const prompt = `Reimagine the person in this photo in the style of the ${decade}. This includes clothing, hairstyle, photo quality, and the overall aesthetic of that decade. The output must be a photorealistic image showing the person clearly.`;
-            const resultUrl = await generateDecadeImage(uploadedImage, prompt);
+            const prompt = `Reimagine the person in this photo in the artistic style of the anime 'Violet Evergarden'. The scene is: "${scene}". Capture the painterly, emotional aesthetic of the anime with detailed clothing and background appropriate for the scene. The output must be a high-quality, artistic image.`;
+            const resultUrl = await generateStyledImage(uploadedImage, prompt, scene);
             setGeneratedImages(prev => ({
                 ...prev,
-                [decade]: { status: 'done', url: resultUrl },
+                [scene]: { status: 'done', url: resultUrl },
             }));
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
             setGeneratedImages(prev => ({
                 ...prev,
-                [decade]: { status: 'error', error: errorMessage },
+                [scene]: { status: 'error', error: errorMessage },
             }));
-            console.error(`Failed to regenerate image for ${decade}:`, err);
+            console.error(`Failed to regenerate image for ${scene}:`, err);
         }
     };
     
@@ -166,12 +180,12 @@ function App() {
         setAppState('idle');
     };
 
-    const handleDownloadIndividualImage = (decade: string) => {
-        const image = generatedImages[decade];
+    const handleDownloadIndividualImage = (scene: string) => {
+        const image = generatedImages[scene];
         if (image?.status === 'done' && image.url) {
             const link = document.createElement('a');
             link.href = image.url;
-            link.download = `past-forward-${decade}.jpg`;
+            link.download = `violet-evergarden-${scene.toLowerCase().replace(/\s/g, '-')}.jpg`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -183,12 +197,12 @@ function App() {
         try {
             const imageData = Object.entries(generatedImages)
                 .filter(([, image]) => image.status === 'done' && image.url)
-                .reduce((acc, [decade, image]) => {
-                    acc[decade] = image!.url!;
+                .reduce((acc, [scene, image]) => {
+                    acc[scene] = image!.url!;
                     return acc;
                 }, {} as Record<string, string>);
 
-            if (Object.keys(imageData).length < DECADES.length) {
+            if (Object.keys(imageData).length < SCENES.length) {
                 alert("Please wait for all images to finish generating before downloading the album.");
                 return;
             }
@@ -197,7 +211,7 @@ function App() {
 
             const link = document.createElement('a');
             link.href = albumDataUrl;
-            link.download = 'past-forward-album.jpg';
+            link.download = 'violet-evergarden-album.jpg';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -209,15 +223,31 @@ function App() {
             setIsDownloading(false);
         }
     };
+    
+    const handleOpenRemixModal = (scene: string, imageUrl: string) => {
+        setRemixModalState({ isOpen: true, scene, imageUrl });
+    };
+
+    const handleCloseRemixModal = () => {
+        setRemixModalState({ isOpen: false, scene: null, imageUrl: null });
+    };
+
+    const handleSaveRemixedImage = (scene: string, newImageUrl: string) => {
+        setGeneratedImages(prev => ({
+            ...prev,
+            [scene]: { ...prev[scene], status: 'done', url: newImageUrl },
+        }));
+        handleCloseRemixModal();
+    };
 
     return (
-        <main className="bg-black text-neutral-200 min-h-screen w-full flex flex-col items-center justify-center p-4 pb-24 overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-full h-full bg-grid-white/[0.05]"></div>
+        <main className="text-neutral-800 min-h-screen w-full flex flex-col items-center justify-center p-4 pb-24 overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-full h-full bg-grid-black/[0.05]"></div>
             
             <div className="z-10 flex flex-col items-center justify-center w-full h-full flex-1 min-h-0">
                 <div className="text-center mb-10">
-                    <h1 className="text-6xl md:text-8xl font-caveat font-bold text-neutral-100">Past Forward</h1>
-                    <p className="font-permanent-marker text-neutral-300 mt-2 text-xl tracking-wide">Generate yourself through the decades.</p>
+                    <h1 className="text-7xl md:text-9xl font-great-vibes text-neutral-900">Violet Evergarden</h1>
+                    <p className="text-neutral-700 mt-2 text-xl tracking-wide">See yourself in the style of an Auto Memory Doll.</p>
                 </div>
 
                 {appState === 'idle' && (
@@ -253,8 +283,8 @@ function App() {
                                  />
                             </label>
                             <input id="file-upload" type="file" className="hidden" accept="image/png, image/jpeg, image/webp" onChange={handleImageUpload} />
-                            <p className="mt-8 font-permanent-marker text-neutral-500 text-center max-w-xs text-lg">
-                                Click the polaroid to upload your photo and start your journey through time.
+                            <p className="mt-8 text-neutral-600 text-center max-w-xs text-lg">
+                                Click the polaroid to upload your photo and start your journey.
                             </p>
                         </motion.div>
                     </div>
@@ -282,15 +312,16 @@ function App() {
                      <>
                         {isMobile ? (
                             <div className="w-full max-w-sm flex-1 overflow-y-auto mt-4 space-y-8 p-4">
-                                {DECADES.map((decade) => (
-                                    <div key={decade} className="flex justify-center">
+                                {SCENES.map((scene) => (
+                                    <div key={scene} className="flex justify-center">
                                          <PolaroidCard
-                                            caption={decade}
-                                            status={generatedImages[decade]?.status || 'pending'}
-                                            imageUrl={generatedImages[decade]?.url}
-                                            error={generatedImages[decade]?.error}
-                                            onShake={handleRegenerateDecade}
+                                            caption={scene}
+                                            status={generatedImages[scene]?.status || 'pending'}
+                                            imageUrl={generatedImages[scene]?.url}
+                                            error={generatedImages[scene]?.error}
+                                            onShake={handleRegenerateScene}
                                             onDownload={handleDownloadIndividualImage}
+                                            onRemix={handleOpenRemixModal}
                                             isMobile={isMobile}
                                         />
                                     </div>
@@ -298,11 +329,11 @@ function App() {
                             </div>
                         ) : (
                             <div ref={dragAreaRef} className="relative w-full max-w-5xl h-[600px] mt-4">
-                                {DECADES.map((decade, index) => {
+                                {SCENES.map((scene, index) => {
                                     const { top, left, rotate } = POSITIONS[index];
                                     return (
                                         <motion.div
-                                            key={decade}
+                                            key={scene}
                                             className="absolute cursor-grab active:cursor-grabbing"
                                             style={{ top, left }}
                                             initial={{ opacity: 0, scale: 0.5, y: 100, rotate: 0 }}
@@ -316,12 +347,13 @@ function App() {
                                         >
                                             <PolaroidCard 
                                                 dragConstraintsRef={dragAreaRef}
-                                                caption={decade}
-                                                status={generatedImages[decade]?.status || 'pending'}
-                                                imageUrl={generatedImages[decade]?.url}
-                                                error={generatedImages[decade]?.error}
-                                                onShake={handleRegenerateDecade}
+                                                caption={scene}
+                                                status={generatedImages[scene]?.status || 'pending'}
+                                                imageUrl={generatedImages[scene]?.url}
+                                                error={generatedImages[scene]?.error}
+                                                onShake={handleRegenerateScene}
                                                 onDownload={handleDownloadIndividualImage}
+                                                onRemix={handleOpenRemixModal}
                                                 isMobile={isMobile}
                                             />
                                         </motion.div>
@@ -349,6 +381,13 @@ function App() {
                 )}
             </div>
             <Footer />
+            <RemixModal
+                isOpen={remixModalState.isOpen}
+                onClose={handleCloseRemixModal}
+                onSave={handleSaveRemixedImage}
+                scene={remixModalState.scene}
+                initialImageUrl={remixModalState.imageUrl}
+            />
         </main>
     );
 }

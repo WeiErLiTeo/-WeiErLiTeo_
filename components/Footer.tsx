@@ -6,12 +6,12 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const REMIX_IDEAS = [
-    "to try different hairstyles.",
-    "to turn your pet into a cartoon character.",
+    "to write a letter to a loved one.",
+    "to see yourself in a beautiful story.",
+    "to travel to a different time and place.",
     "to create a fantasy version of yourself.",
-    "to design a superhero based on your photo.",
-    "to place yourself in famous historical events.",
-    "to generate a custom video game avatar.",
+    "to place yourself in a historical setting.",
+    "to generate a custom storybook character.",
 ];
 
 const Footer = () => {
@@ -26,19 +26,19 @@ const Footer = () => {
     }, []);
 
     return (
-        <footer className="fixed bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-3 z-50 text-neutral-300 text-xs sm:text-sm border-t border-white/10">
+        <footer className="fixed bottom-0 left-0 right-0 bg-black/30 backdrop-blur-sm p-3 z-50 text-neutral-300 text-xs sm:text-sm border-t border-white/10">
             <div className="max-w-screen-xl mx-auto flex justify-between items-center gap-4 px-4">
                 {/* Left Side */}
-                <div className="hidden md:flex items-center gap-4 text-neutral-500 whitespace-nowrap">
+                <div className="hidden md:flex items-center gap-4 text-neutral-200 whitespace-nowrap">
                     <p>Powered by Gemini 2.5 Flash Image Preview</p>
-                    <span className="text-neutral-700" aria-hidden="true">|</span>
+                    <span className="text-neutral-400" aria-hidden="true">|</span>
                     <p>
                         Created by{' '}
                         <a
                             href="https://x.com/ammaar"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-neutral-400 hover:text-yellow-400 transition-colors duration-200"
+                            className="text-neutral-100 hover:text-amber-300 transition-colors duration-200"
                         >
                             @ammaar
                         </a>
@@ -47,7 +47,7 @@ const Footer = () => {
 
                 {/* Right Side */}
                 <div className="flex-grow flex justify-end items-center gap-4 sm:gap-6">
-                    <div className="hidden lg:flex items-center gap-2 text-neutral-400 text-right min-w-0">
+                    <div className="hidden lg:flex items-center gap-2 text-neutral-200 text-right min-w-0">
                         <span className="flex-shrink-0">Remix this app...</span>
                         <div className="relative w-64 h-5">
                             <AnimatePresence mode="wait">
@@ -57,7 +57,7 @@ const Footer = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -10 }}
                                     transition={{ duration: 0.4, ease: "easeInOut" }}
-                                    className="absolute inset-0 font-medium text-neutral-200 whitespace-nowrap text-left"
+                                    className="absolute inset-0 font-medium text-white whitespace-nowrap text-left"
                                 >
                                     {REMIX_IDEAS[index]}
                                 </motion.span>
@@ -70,7 +70,7 @@ const Footer = () => {
                             href="https://aistudio.google.com/apps"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-permanent-marker text-sm sm:text-base text-center text-black bg-yellow-400 py-2 px-4 rounded-sm transform transition-transform duration-200 hover:scale-105 hover:-rotate-2 hover:bg-yellow-300 shadow-[1px_1px_0px_1px_rgba(0,0,0,0.2)] whitespace-nowrap"
+                            className="font-lato text-sm sm:text-base text-center text-amber-900 bg-amber-400 py-2 px-4 rounded-sm transform transition-transform duration-200 hover:scale-105 hover:-rotate-2 hover:bg-amber-300 shadow-[1px_1px_0px_1px_rgba(0,0,0,0.2)] whitespace-nowrap"
                         >
                             Apps on AI Studio
                         </a>
@@ -78,7 +78,7 @@ const Footer = () => {
                             href="https://gemini.google.com/"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-permanent-marker text-sm sm:text-base text-center text-white bg-white/10 backdrop-blur-sm border border-white/50 py-2 px-4 rounded-sm transform transition-transform duration-200 hover:scale-105 hover:rotate-2 hover:bg-white hover:text-black whitespace-nowrap"
+                            className="font-lato text-sm sm:text-base text-center text-white bg-white/10 backdrop-blur-sm border border-white/50 py-2 px-4 rounded-sm transform transition-transform duration-200 hover:scale-105 hover:rotate-2 hover:bg-white hover:text-amber-800 whitespace-nowrap"
                         >
                             Chat with Gemini
                         </a>

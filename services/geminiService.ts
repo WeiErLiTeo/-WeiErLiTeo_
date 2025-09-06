@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 import type { GenerateContentResponse } from "@google/genai";
 
 const API_KEY = process.env.API_KEY;
@@ -18,21 +18,11 @@ const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 /**
  * Creates a fallback prompt to use when the primary one is blocked.
- * @param decade The decade string (e.g., "1950s").
+ * @param scene The scene string (e.g., "At a Grand Ball").
  * @returns The fallback prompt string.
  */
-function getFallbackPrompt(decade: string): string {
-    return `Create a photograph of the person in this image as if they were living in the ${decade}. The photograph should capture the distinct fashion, hairstyles, and overall atmosphere of that time period. Ensure the final image is a clear photograph that looks authentic to the era.`;
-}
-
-/**
- * Extracts the decade (e.g., "1950s") from a prompt string.
- * @param prompt The original prompt.
- * @returns The decade string or null if not found.
- */
-function extractDecade(prompt: string): string | null {
-    const match = prompt.match(/(\d{4}s)/);
-    return match ? match[1] : null;
+function getFallbackPrompt(scene: string): string {
+    return `Create an artistic image of the person in this photo. The style should be inspired by the anime 'Violet Evergarden', and the setting is "${scene}". The image should have a painterly, emotional feel, with authentic-looking clothing and background. Ensure the final image is high quality and artistic.`;
 }
 
 /**
@@ -51,6 +41,41 @@ function processGeminiResponse(response: GenerateContentResponse): string {
     const textResponse = response.text;
     console.error("API did not return an image. Response:", textResponse);
     throw new Error(`The AI model responded with text instead of an image: "${textResponse || 'No text response received.'}"`);
+}
+
+/**
+ * Processes a multipart Gemini API response, extracting image and text.
+ * @param response The response from the generateContent call.
+ * @returns An object containing the image URL and/or text.
+ */
+function processMultipartGeminiResponse(response: GenerateContentResponse): { imageUrl?: string; text?: string } {
+    let imageUrl: string | undefined;
+    let text: string | undefined;
+
+    const parts = response.candidates?.[0]?.content?.parts;
+    if (!parts) {
+        throw new Error("Invalid response format from AI model.");
+    }
+
+    for (const part of parts) {
+        if (part.inlineData) {
+            const { mimeType, data } = part.inlineData;
+            imageUrl = `data:${mimeType};base64,${data}`;
+        } else if (part.text) {
+            text = part.text;
+        }
+    }
+
+    if (!imageUrl && !text) {
+        // It's possible for the model to just refuse, which comes back as a text part.
+        const refusalText = response.text;
+        if (refusalText) {
+            return { text: refusalText };
+        }
+        throw new Error("The AI model did not return an image or text.");
+    }
+
+    return { imageUrl, text };
 }
 
 /**
@@ -89,13 +114,14 @@ async function callGeminiWithRetry(imagePart: object, textPart: object): Promise
 
 
 /**
- * Generates a decade-styled image from a source image and a prompt.
- * It includes a fallback mechanism for prompts that might be blocked in certain regions.
+ * Generates a styled image from a source image and a prompt.
+ * It includes a fallback mechanism for prompts that might be blocked.
  * @param imageDataUrl A data URL string of the source image (e.g., 'data:image/png;base64,...').
  * @param prompt The prompt to guide the image generation.
+ * @param scene The specific scene for the image, used for the fallback prompt.
  * @returns A promise that resolves to a base64-encoded image data URL of the generated image.
  */
-export async function generateDecadeImage(imageDataUrl: string, prompt: string): Promise<string> {
+export async function generateStyledImage(imageDataUrl: string, prompt: string, scene: string): Promise<string> {
   const match = imageDataUrl.match(/^data:(image\/\w+);base64,(.*)$/);
   if (!match) {
     throw new Error("Invalid image data URL format. Expected 'data:image/...;base64,...'");
@@ -118,16 +144,11 @@ export async function generateDecadeImage(imageDataUrl: string, prompt: string):
 
         if (isNoImageError) {
             console.warn("Original prompt was likely blocked. Trying a fallback prompt.");
-            const decade = extractDecade(prompt);
-            if (!decade) {
-                console.error("Could not extract decade from prompt, cannot use fallback.");
-                throw error; // Re-throw the original "no image" error.
-            }
 
             // --- Second attempt with the fallback prompt ---
             try {
-                const fallbackPrompt = getFallbackPrompt(decade);
-                console.log(`Attempting generation with fallback prompt for ${decade}...`);
+                const fallbackPrompt = getFallbackPrompt(scene);
+                console.log(`Attempting generation with fallback prompt for ${scene}...`);
                 const fallbackTextPart = { text: fallbackPrompt };
                 const fallbackResponse = await callGeminiWithRetry(imagePart, fallbackTextPart);
                 return processGeminiResponse(fallbackResponse);
@@ -141,5 +162,39 @@ export async function generateDecadeImage(imageDataUrl: string, prompt: string):
             console.error("An unrecoverable error occurred during image generation.", error);
             throw new Error(`The AI model failed to generate an image. Details: ${errorMessage}`);
         }
+    }
+}
+
+/**
+ * Sends an image and a text prompt to the Gemini model to edit/remix the image.
+ * @param imageDataUrl The base image to be edited.
+ * @param prompt The user's instruction for the edit.
+ * @returns A promise resolving to an object with the new image URL and any accompanying text.
+ */
+export async function remixImage(imageDataUrl: string, prompt: string): Promise<{ imageUrl?: string; text?: string }> {
+    const match = imageDataUrl.match(/^data:(image\/\w+);base64,(.*)$/);
+    if (!match) {
+        throw new Error("Invalid image data URL format for remix.");
+    }
+    const [, mimeType, base64Data] = match;
+
+    const imagePart = {
+        inlineData: { mimeType, data: base64Data },
+    };
+    const textPart = { text: prompt };
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: { parts: [imagePart, textPart] },
+            config: {
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
+            },
+        });
+        return processMultipartGeminiResponse(response);
+    } catch (error) {
+        console.error("Error calling Gemini API for remix:", error);
+        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+        throw new Error(`The AI model failed to remix the image. Details: ${errorMessage}`);
     }
 }
